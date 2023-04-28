@@ -1,6 +1,11 @@
 # Notes on Developing a Machine Learning Project
 
-This markdown contains notes and insights on developing a machine learning project. It covers the key steps and considerations involved in the process, from data collection and preprocessing to model selection and evaluation.
+This markdown contains notes and insights on developing a machine learning project. It covers the key steps and considerations involved in the process, from data collection and preprocessing to model 
+selection and evaluation.
+
+## Dataset
+
+`https://drive.google.com/file/d/1UOzAAQcEjztiVjO2DA4ms0bttrG4Z0ot/view?usp=share_link`
 
 ## Split Dataset
 
