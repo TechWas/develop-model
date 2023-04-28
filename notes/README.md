@@ -175,3 +175,15 @@ print(f"Test Accuracy after Tunig : {accuracy}")
 best_xception = tf.keras.models.load_model('/BestXception.h5', compile=False)
 best_xception.summary()
 ```
+
+## Prevent Disconnect on Google Colab
+
+idk if this still work or no, bcs the source is from 2019
+
+```javascript
+function ClickConnect() {
+  console.log("Working");
+  document.querySelector("colab-toolbar-button#connect").click();
+}
+setInterval(ClickConnect, 60000);
+```
