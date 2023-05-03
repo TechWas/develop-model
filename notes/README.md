@@ -9,60 +9,126 @@ selection and evaluation.
 
 ## Split Dataset
 
+available at [`data_splitting.ipynb`](../scripts/data_splitting.ipynb)
+
+the output is 3 folders = `train, test, and valid`
+
+## Dataset Creation
+
+### Load Image
+
 ```python
-train_datagen = ImageDataGenerator(rescale=1./255,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.2) # set validation split
+def load_image(image_path: str) -> tf.Tensor:
 
-train_generator = train_datagen.flow_from_directory(
-    train_data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='binary',
-    subset='training') # set as training data
+    '''
+    The task of the function is to load the image present in the specified given image path. Loading the image the function also performed some
+    preprocessing steps such as resizing and normalization.
 
-validation_generator = train_datagen.flow_from_directory(
-    train_data_dir, # same directory as training data
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='binary',
-    subset='validation') # set as validation data
+    Argument:
+        image_path(str) : This is a string which represents the location of the image file to be loaded.
 
-model.fit_generator(
-    train_generator,
-    steps_per_epoch = train_generator.samples // batch_size,
-    validation_data = validation_generator,
-    validation_steps = validation_generator.samples // batch_size,
-    epochs = nb_epochs)
+    Returns:
+        image(tf.Tensor) : This is the image which is loaded from the given image part in the form of a tensor.
+    '''
+
+    # Check if image path exists
+    assert os.path.exists(image_path), f'Invalid image path: {image_path}'
+
+    # Read the image file
+    image = tf.io.read_file(image_path)
+
+    # Load the image
+    try:
+        image = tfi.decode_jpeg(image, channels=3)
+    except:
+        image = tfi.decode_png(image, channels=3)
+
+    # Change the image data type
+    image = tfi.convert_image_dtype(image, tf.float32)
+
+    # Resize the Image
+    image = tfi.resize(image, (IMAGE_SIZE, IMAGE_SIZE))
+
+    # Convert image data type to tf.float32
+    image = tf.cast(image, tf.float32)
+
+    return image
 ```
 
-## Avoid error on Image Byte Loss
+### Load Dataset
 
 ```python
-# avoid error
-from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+def load_dataset(root_path: str, class_names: list, trim: int=None) -> Tuple[np.ndarray, np.ndarray]:
+    '''
+    Load and preprocess images from the given root path and return them as numpy arrays.
+
+    Args:
+        root_path (str): Path to the root directory where all the subdirectories (class names) are present.
+        class_names (list): List of the names of all the subdirectories (class names).
+        trim (int): An integer value used to reduce the size of the data set if required.
+
+    Returns:
+        Two numpy arrays, one containing the images and the other containing their respective labels.
+    '''
+
+    if trim:
+        # Trim the size of the data
+        n_samples = len(class_names) * trim
+    else:
+        # Collect total number of data samples
+        n_samples = sum([len(os.listdir(os.path.join(root_path, name))) for name in class_names])
+
+    # Create arrays to store images and labels
+    images = np.empty(shape=(n_samples, IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.float32)
+    labels = np.empty(shape=(n_samples, 1), dtype=np.int32)
+
+    # Loop over all the image file paths, load and store the images with respective labels
+    n_image = 0
+    for class_name in tqdm(class_names, desc="Loading"):
+        class_path = os.path.join(root_path, class_name)
+        image_paths = list(glob(os.path.join(class_path, "*")))[:trim]
+        for file_path in image_paths:
+            # Load the image
+            image = load_image(file_path)
+
+            # Assign label
+            label = class_names.index(class_name)
+
+            # Store the image and the respective label
+            images[n_image] = image
+            labels[n_image] = label
+
+            # Increment the number of images processed
+            n_image += 1
+
+    # Shuffle the data
+    indices = np.random.permutation(n_samples)
+    images = images[indices]
+    labels = labels[indices]
+
+
+    return images, labels
+```
+
+### Use the function (load dataset)
+
+```python
+# Load the training dataset
+X_train, y_train = load_dataset(root_path = train_dir, class_names = class_names)
+
+# # Load the validation dataset
+X_valid, y_valid = load_dataset(root_path = valid_dir, class_names = class_names)
+
+# Load the testing dataset
+X_test, y_test = load_dataset(root_path = test_dir, class_names = class_names)
 ```
 
 ## Testing on Model
 
 ```python
-# specify path
-test_data_dir = 'test/test/'
-
-# create ImageDataGenerator
-test_generator = test_datagen.flow_from_directory(
-        test_data_dir,
-        target_size=(IMAGE_SIZE, IMAGE_SIZE),
-        batch_size=32,
-        class_mode='categorical')
-
-# evaluate
-xtest_loss, xtest_acc = model.evaluate(test_generator)
-print(f"Xception Baseline Testing Loss     : {xtest_loss}.")
-print(f"Xception Baseline Testing Accuracy : {xtest_acc}.")
+test_loss, test_acc = xception.evaluate(X_test, y_test)
+print("Loss    : {:.4}".format(test_loss))
+print("Accuracy: {:.4}%".format(test_acc*100))
 ```
 
 ## Apply Hypertuning
@@ -172,6 +238,6 @@ print(f"Test Accuracy after Tunig : {accuracy}")
 
 ```python
 #  Load model
-best_xception = tf.keras.models.load_model('/BestXception.h5', compile=False)
+best_xception = tf.keras.models.load_model('model.h5')
 best_xception.summary()
 ```
