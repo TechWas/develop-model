@@ -3,10 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 Dataset/
+XceptionSearch/
 
 # C extensions
 *.so
-*.zip
 
 # Distribution / packaging
 .Python
